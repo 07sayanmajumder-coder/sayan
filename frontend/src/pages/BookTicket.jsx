@@ -26,6 +26,53 @@ const getToday = () => {
   return localDate.toISOString().slice(0, 10);
 };
 
+// Supports the field names in trains.json and common API formats.
+function formatTrain(item) {
+  return {
+    number: String(
+      item.trainNumber ||
+      item.train_number ||
+      item.number ||
+      ''
+    ),
+    name:
+      item.trainName ||
+      item.train_name ||
+      item.name ||
+      'Unknown Train',
+    from:
+      item.sourceName ||
+      item.source_name ||
+      item.from_station_name ||
+      item.source ||
+      item.from ||
+      item.source_code ||
+      item.source_station_code ||
+      '',
+    to:
+      item.destinationName ||
+      item.destination_name ||
+      item.to_station_name ||
+      item.destination ||
+      item.to ||
+      item.destination_code ||
+      item.destination_station_code ||
+      '',
+    original: item
+  };
+}
+
+function getScheduleData(response) {
+  let data = response?.data || response;
+
+  // Handle an additional nested data object.
+  if (data?.data) {
+    data = data.data;
+  }
+
+  return data;
+}
+
 export default function BookTicket() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -57,6 +104,8 @@ export default function BookTicket() {
 
   // Load train catalog.
   useEffect(() => {
+    let cancelled = false;
+
     async function fetchTrains() {
       try {
         setLoadingTrains(true);
@@ -77,92 +126,102 @@ export default function BookTicket() {
         }
 
         const formattedTrains = records
-          .map((item) => ({
-            number: String(
-              item.train_number || item.number || ''
-            ),
-            name:
-              item.train_name ||
-              item.name ||
-              'Unknown Train',
-            from:
-              item.source_name ||
-              item.from_station_name ||
-              item.source ||
-              item.from ||
-              item.source_code ||
-              item.source_station_code ||
-              '',
-            to:
-              item.destination_name ||
-              item.to_station_name ||
-              item.destination ||
-              item.to ||
-              item.destination_code ||
-              item.destination_station_code ||
-              ''
-          }))
+          .map(formatTrain)
           .filter((item) => item.number);
 
-        setTrains(formattedTrains);
+        if (!formattedTrains.length) {
+          throw new Error(
+            'No trains were found in the train catalog.'
+          );
+        }
+
+        if (!cancelled) {
+          setTrains(formattedTrains);
+        }
       } catch (error) {
         console.error('Train loading error:', error);
-        setTrainError(error.message);
+
+        if (!cancelled) {
+          setTrainError(
+            error.message || 'Unable to load trains.'
+          );
+        }
       } finally {
-        setLoadingTrains(false);
+        if (!cancelled) {
+          setLoadingTrains(false);
+        }
       }
     }
 
     fetchTrains();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const train = trains.find(
     (item) => item.number === trainNumber
   );
 
-  // Fetch route from the selected train's schedule.
+  // Load the selected train's schedule.
   useEffect(() => {
     if (!trainNumber || !train) {
       setRoute({ from: '', to: '' });
+      setLoadingRoute(false);
       return;
     }
 
     let cancelled = false;
 
     async function fetchRoute() {
+      setLoadingRoute(true);
+
+      // Use the catalog route immediately as a fallback.
+      setRoute({
+        from: train.from || '',
+        to: train.to || ''
+      });
+
       try {
-        setLoadingRoute(true);
-
-        setRoute({
-          from: train.from || '',
-          to: train.to || ''
-        });
-
         const response = await getTrainSchedule(trainNumber);
 
         if (cancelled) return;
 
-        // Handle both nested and direct API response formats.
-        const schedule = response?.data || response;
+        const schedule = getScheduleData(response);
 
         const stops = Array.isArray(schedule?.stops)
           ? schedule.stops
-          : [];
+          : Array.isArray(schedule?.schedule)
+            ? schedule.schedule
+            : Array.isArray(schedule?.data?.stops)
+              ? schedule.data.stops
+              : [];
+
+        const firstStop = stops[0] || {};
+        const lastStop = stops[stops.length - 1] || {};
 
         const source =
-          schedule?.source_station_name ||
+          schedule?.sourceName ||
           schedule?.source_name ||
-          schedule?.source_station_code ||
+          schedule?.source_station_name ||
+          schedule?.source ||
+          firstStop.stationName ||
+          firstStop.station_name ||
+          firstStop.name ||
           train.from;
 
         const destination =
-          schedule?.destination_station_name ||
+          schedule?.destinationName ||
           schedule?.destination_name ||
-          schedule?.destination_station_code ||
+          schedule?.destination_station_name ||
+          schedule?.destination ||
+          lastStop.stationName ||
+          lastStop.station_name ||
+          lastStop.name ||
           train.to;
 
         console.log('Selected train schedule:', schedule);
-        console.log('Train route:', source, destination);
         console.log('Train stops:', stops);
 
         setRoute({
@@ -172,6 +231,7 @@ export default function BookTicket() {
       } catch (error) {
         console.error('Schedule loading error:', error);
 
+        // Keep the route from the local train catalog.
         if (!cancelled) {
           setRoute({
             from: train.from || 'Not available',
@@ -196,6 +256,8 @@ export default function BookTicket() {
     e.preventDefault();
 
     if (busy) return;
+
+    setMessage('');
 
     if (!user?.email) {
       setMessage('Please log in before booking a train.');
@@ -224,7 +286,9 @@ export default function BookTicket() {
       route.from === 'Not available' ||
       route.to === 'Not available'
     ) {
-      setMessage('Train route is unavailable. Please try selecting the train again.');
+      setMessage(
+        'Train route is unavailable. Please select the train again.'
+      );
       return;
     }
 
@@ -332,7 +396,7 @@ export default function BookTicket() {
 
       <div className="content-card">
         {loadingTrains ? (
-          <p>Loading trains from RailCore...</p>
+          <p>Loading demo trains...</p>
         ) : trainError ? (
           <div className="empty-state">
             <strong>Unable to load trains.</strong>

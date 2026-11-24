@@ -1,119 +1,95 @@
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useCallback, useEffect, useState } from "react";
+import { Link, useParams } from "react-router-dom";
 
 import {
-  getLiveTrainStatus,
-  getTrainSchedule
-} from '../data/trains';
+  getTrainSchedule,
+  getLiveTrainStatus
+} from "../data/trains";
 
-// Format date and time in Indian Standard Time
-const formatDateTime = (value) => {
-  if (!value) return 'Not available';
+// Current date in Indian Standard Time
+const getIndiaDate = () =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(new Date());
+
+// Format scheduled station times and ISO date-times
+const formatTime = (value) => {
+  if (value === null || value === undefined || value === "") {
+    return "Not available";
+  }
+
+  if (
+    typeof value === "string" &&
+    /^\d{1,2}:\d{2}/.test(value)
+  ) {
+    return value;
+  }
 
   const date = new Date(value);
 
-  if (Number.isNaN(date.getTime())) return String(value);
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
 
-  return new Intl.DateTimeFormat('en-IN', {
-    timeZone: 'Asia/Kolkata',
-    day: '2-digit',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
+  return new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
+    hour: "2-digit",
+    minute: "2-digit",
     hour12: true
   }).format(date);
 };
 
-const formatDuration = (milliseconds) => {
-  if (milliseconds <= 0) return 'Arrival time passed';
+// Format ETA with its date
+const formatETA = (value) => {
+  if (!value) return "Not available";
 
-  const totalMinutes = Math.floor(milliseconds / 60000);
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
+  const date = new Date(value);
 
-  return `${hours} hr ${minutes} min`;
+  if (Number.isNaN(date.getTime())) {
+    return "Not available";
+  }
+
+  return new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true
+  }).format(date);
 };
 
-const formatDistance = (value) => {
-  if (
-    value === null ||
-    value === undefined ||
-    value === '' ||
-    !Number.isFinite(Number(value))
-  ) {
-    return 'Not available';
+// Format station objects returned by Railway Engine
+const formatStation = (station) => {
+  if (!station) return "Not available";
+
+  if (typeof station === "string") {
+    return station;
   }
 
-  return `${Number(value).toFixed(1)} km`;
+  if (station.name && station.code) {
+    return `${station.name} (${station.code})`;
+  }
+
+  return station.name || station.code || "Not available";
 };
 
-// Find station arrays inside common API response structures
-const findStations = (data, depth = 0) => {
-  if (!data || typeof data !== 'object' || depth > 6) {
-    return [];
-  }
+// Convert NOT_STARTED into Not Started
+const formatStatus = (status) => {
+  if (!status) return "Not available";
 
-  if (Array.isArray(data)) {
-    const stationKeys = [
-      'station_code',
-      'stationCode',
-      'station_name',
-      'stationName',
-      'station',
-      'stnCode'
-    ];
-
-    const looksLikeStations =
-      data.length > 0 &&
-      data.some((item) =>
-        item &&
-        typeof item === 'object' &&
-        stationKeys.some((key) => item[key] != null)
-      );
-
-    if (looksLikeStations) return data;
-
-    for (const item of data) {
-      const result = findStations(item, depth + 1);
-      if (result.length) return result;
-    }
-
-    return [];
-  }
-
-  const preferredKeys = [
-    'stations',
-    'route',
-    'stops',
-    'schedule',
-    'routeStations',
-    'stationList',
-    'stopList',
-    'trainRoute',
-    'data',
-    'result',
-    'results'
-  ];
-
-  for (const key of preferredKeys) {
-    if (data[key] !== undefined) {
-      const result = findStations(data[key], depth + 1);
-      if (result.length) return result;
-    }
-  }
-
-  for (const value of Object.values(data)) {
-    if (value && typeof value === 'object') {
-      const result = findStations(value, depth + 1);
-      if (result.length) return result;
-    }
-  }
-
-  return [];
+  return String(status)
+    .replaceAll("_", " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 };
 
-// Convert different station field names into one consistent format
+// Normalize scheduled station information
 const normalizeStation = (station, index) => ({
   ...station,
 
@@ -122,24 +98,18 @@ const normalizeStation = (station, index) => ({
     station.stationCode ||
     station.code ||
     station.stnCode ||
-    station.stn_code ||
-    station.station?.code ||
-    '',
+    "",
 
   station_name:
     station.station_name ||
     station.stationName ||
     station.name ||
-    station.station?.name ||
-    (typeof station.station === 'string' ? station.station : '') ||
-    'Station information unavailable',
+    "Station information unavailable",
 
   sequence:
     station.sequence ??
     station.stop_number ??
     station.stopNumber ??
-    station.serial_no ??
-    station.s_no ??
     index + 1,
 
   distance_km:
@@ -150,579 +120,540 @@ const normalizeStation = (station, index) => ({
     null,
 
   scheduled_arrival:
-    station.scheduled_arrival ||
-    station.scheduledArrival ||
-    station.arrival_time ||
-    station.arrivalTime ||
-    station.sta ||
-    station.arrival ||
+    station.scheduled_arrival ??
+    station.scheduledArrival ??
+    station.arrival_time ??
+    station.arrivalTime ??
+    station.arrival ??
     null,
 
   scheduled_departure:
-    station.scheduled_departure ||
-    station.scheduledDeparture ||
-    station.departure_time ||
-    station.departureTime ||
-    station.std ||
-    station.departure ||
-    null,
-
-  actual_arrival:
-    station.actual_arrival ||
-    station.actualArrival ||
-    station.ata ||
-    null,
-
-  actual_departure:
-    station.actual_departure ||
-    station.actualDeparture ||
-    station.atd ||
-    null,
-
-  platform_number:
-    station.platform_number ||
-    station.platformNumber ||
-    station.platform ||
+    station.scheduled_departure ??
+    station.scheduledDeparture ??
+    station.departure_time ??
+    station.departureTime ??
+    station.departure ??
     null
 });
+
+// Format distance
+const formatDistance = (value) => {
+  if (
+    value === null ||
+    value === undefined ||
+    value === "" ||
+    !Number.isFinite(Number(value))
+  ) {
+    return "Not available";
+  }
+
+  return `${Number(value).toFixed(1)} km`;
+};
 
 export default function TrainDetails() {
   const { trainNumber } = useParams();
 
-  const [train, setTrain] = useState(null);
+  // Scheduled route states
   const [schedule, setSchedule] = useState(null);
-
-  const [loading, setLoading] = useState(true);
   const [scheduleLoading, setScheduleLoading] = useState(true);
+  const [scheduleError, setScheduleError] = useState("");
 
-  const [error, setError] = useState('');
-  const [scheduleError, setScheduleError] = useState('');
+  // Live status states
+  const [liveResponse, setLiveResponse] = useState(null);
+  const [liveLoading, setLiveLoading] = useState(false);
+  const [liveError, setLiveError] = useState("");
 
-  const [lastUpdated, setLastUpdated] = useState('');
+  // Load scheduled route
+  const loadSchedule = useCallback(async () => {
+    if (!trainNumber) {
+      setScheduleError("Train number is missing from the page URL.");
+      setScheduleLoading(false);
+      return;
+    }
 
-  // Fetch live status and scheduled route independently
-  const loadStatus = useCallback(async () => {
-    setLoading(true);
     setScheduleLoading(true);
+    setScheduleError("");
+    setSchedule(null);
 
-    setError('');
-    setScheduleError('');
+    try {
+      const result = await getTrainSchedule(trainNumber);
 
-    const liveRequest = getLiveTrainStatus(trainNumber)
-      .then((data) => {
-        setTrain(data);
-        setLastUpdated(new Date().toISOString());
-      })
-      .catch((err) => {
-        console.error('Live status error:', err);
-        setError(err.message || 'Unable to load live status.');
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+      console.log("Complete schedule response:", result);
 
-    const scheduleRequest = getTrainSchedule(trainNumber)
-      .then((data) => {
-        console.log('COMPLETE SCHEDULE RESPONSE:', data);
-        setSchedule(data);
-      })
-      .catch((err) => {
-        console.error('Schedule error:', err);
-        setScheduleError(
-          err.message || 'Unable to load train schedule.'
-        );
-      })
-      .finally(() => {
-        setScheduleLoading(false);
-      });
+      setSchedule(result);
+    } catch (error) {
+      console.error("Schedule error:", error);
 
-    await Promise.all([liveRequest, scheduleRequest]);
+      setScheduleError(
+        error.message || "Unable to load the train schedule."
+      );
+    } finally {
+      setScheduleLoading(false);
+    }
   }, [trainNumber]);
 
+  // Load live running status
+  const loadLiveStatus = useCallback(async () => {
+    if (!trainNumber) return;
+
+    setLiveLoading(true);
+    setLiveError("");
+
+    try {
+      const result = await getLiveTrainStatus(
+        trainNumber,
+        getIndiaDate()
+      );
+
+      console.log("Complete live status response:", result);
+
+      setLiveResponse(result);
+    } catch (error) {
+      console.error("Live train status error:", error);
+
+      setLiveResponse(null);
+
+      setLiveError(
+        error.message || "Unable to fetch live train status."
+      );
+    } finally {
+      setLiveLoading(false);
+    }
+  }, [trainNumber]);
+
+  // Load both independently
   useEffect(() => {
-    setTrain(null);
-    setSchedule(null);
-    setLastUpdated('');
+    loadSchedule();
+    loadLiveStatus();
+  }, [loadSchedule, loadLiveStatus]);
 
-    loadStatus();
-  }, [loadStatus]);
-
-  // Extract route stations from the schedule response
-  const scheduleStations = useMemo(() => {
-    return findStations(schedule).map(normalizeStation);
-  }, [schedule]);
-
-  // Prefer the scheduled route. Use live stations as fallback.
-  const liveStations = Array.isArray(train?.stations)
-    ? train.stations
+  // Scheduled stations
+  const rawStations = Array.isArray(schedule?.stations)
+    ? schedule.stations
+    : Array.isArray(schedule?.schedule)
+    ? schedule.schedule
     : [];
 
-  const stations =
-    scheduleStations.length > 0
-      ? scheduleStations
-      : liveStations.map(normalizeStation);
+  const stations = rawStations.map(normalizeStation);
 
-  const isUsingSchedule = scheduleStations.length > 0;
+  const trainName =
+    schedule?.train_name ||
+    schedule?.trainName ||
+    "Train Details";
 
-  const currentIndex = stations.findIndex(
-    (station) =>
-      station.station_code &&
-      station.station_code === train?.current_station_code
+  const isFallback =
+    schedule?.isFallback === true ||
+    schedule?.source === "Local sample data";
+
+  // Exact Railway Engine response structure
+  const liveData = liveResponse?.data || {};
+
+  const currentStation = liveData.currentStation;
+  const nextStation = liveData.nextStation;
+
+  const speed = liveData.speedKmph;
+  const delay = liveData.delayMinutes;
+
+  const eta = liveData.eta;
+  const liveStatus = liveData.status;
+
+  const routeProgress = liveData.routeProgress;
+  const freshness = liveData.freshness;
+
+  const hasLiveData = Boolean(
+    liveResponse?.success && liveResponse?.data
   );
 
-  const covered = Number(train?.distance_covered_km);
-  const total = Number(train?.total_distance_km);
+  const isStale =
+    liveResponse?.isStale === true ||
+    freshness?.state === "STALE";
 
-  const hasDistance =
-    Number.isFinite(covered) &&
-    Number.isFinite(total) &&
-    total > 0;
-
-  const remaining = hasDistance
-    ? Math.max(0, total - covered)
-    : null;
-
-  const progress = Number(train?.progress_percent);
-
-  const safeProgress = Number.isFinite(progress)
-    ? Math.min(100, Math.max(0, progress))
-    : 0;
-
-  const nextStop = train?.next_stop;
-
-  const etaTime = train?.eta_destination_at
-    ? new Date(train.eta_destination_at)
-    : null;
-
-  const remainingTime =
-    etaTime && !Number.isNaN(etaTime.getTime())
-      ? etaTime.getTime() - Date.now()
-      : null;
-
-  const freshness = train?.freshness;
-
-  const isInitialLoading =
-    loading &&
-    scheduleLoading &&
-    !train &&
-    !schedule;
-
-  if (isInitialLoading) {
-    return (
-      <section className="page narrow-page">
-        <p className="eyebrow">LIVE TRAIN TRACKING</p>
-        <h1>Loading train details...</h1>
-        <p className="lead">
-          Fetching live status and scheduled train route.
-        </p>
-      </section>
-    );
-  }
-
-  if (!train && !schedule && !loading && !scheduleLoading) {
-    return (
-      <section className="page narrow-page">
-        <p className="eyebrow">TRAIN INFORMATION</p>
-        <h1>Unable to load train</h1>
-
-        <p className="lead">
-          {error || scheduleError || 'Train information is unavailable.'}
-        </p>
-
-        <button
-          className="button primary"
-          onClick={loadStatus}
-          disabled={loading || scheduleLoading}
-        >
-          Try Again
-        </button>
-
-        <p>
-          <Link to="/dashboard">← Back to Dashboard</Link>
-        </p>
-      </section>
-    );
-  }
+  const refreshAll = () => {
+    loadSchedule();
+    loadLiveStatus();
+  };
 
   return (
     <section className="page train-details-page">
 
-      {/* Page heading */}
+      {/* PAGE HEADING */}
       <div className="dashboard-heading">
         <div>
-          <p className="eyebrow">TRAIN TRACKING</p>
+          <p className="eyebrow">TRAIN INFORMATION</p>
 
           <h1>
-            {train?.train_name ||
-              schedule?.train_name ||
-              schedule?.trainName ||
-              'Train Details'}
+            {liveData.trainName || trainName}
           </h1>
 
           <p className="lead">
-            Train No. {train?.train_number || trainNumber}
+            Train No. {trainNumber}
           </p>
         </div>
 
         <button
           className="button primary"
-          onClick={loadStatus}
-          disabled={loading || scheduleLoading}
+          onClick={refreshAll}
+          disabled={scheduleLoading || liveLoading}
         >
-          {loading || scheduleLoading
-            ? 'Refreshing...'
-            : '↻ Refresh Train Details'}
+          {scheduleLoading || liveLoading
+            ? "Refreshing..."
+            : "↻ Refresh"}
         </button>
       </div>
 
-      {/* API errors */}
-      {error && (
+      {/* SAMPLE DATA WARNING */}
+      {isFallback && (
         <div className="empty-state">
-          Live status unavailable: {error}
+          <strong>Sample schedule displayed</strong>
+
           <p>
-            The scheduled route may still be displayed below.
+            These station timings come from local demonstration
+            data. They are not verified live railway timings.
           </p>
         </div>
       )}
 
+      {/* SCHEDULE LOADING */}
+      {scheduleLoading && (
+        <div className="content-card">
+          <p>Loading scheduled station details...</p>
+        </div>
+      )}
+
+      {/* SCHEDULE ERROR */}
       {scheduleError && (
         <div className="empty-state">
-          Schedule unavailable: {scheduleError}
-          <p>
-            Trying to display station information from live status instead.
-          </p>
+          <strong>Schedule unavailable</strong>
+
+          <p>{scheduleError}</p>
+
+          <button
+            className="button primary"
+            onClick={loadSchedule}
+            disabled={scheduleLoading}
+          >
+            Try Again
+          </button>
         </div>
       )}
 
-      {/* Running status */}
-      <div className="content-card">
-        <p className="eyebrow">CURRENT RUNNING STATUS</p>
+      {!scheduleLoading && !scheduleError && (
+        <>
 
-        <h2>
-          {train?.status_text ||
-            train?.status ||
-            'Live status unavailable'}
-        </h2>
+          {/* SCHEDULED TRAIN ROUTE */}
+          <div className="content-card">
+            <p className="eyebrow">
+              SCHEDULED TRAIN ROUTE
+            </p>
 
-        <div className="dashboard-stats">
-          <div className="dashboard-stat">
-            <span>Current / Last Reported Station</span>
-            <strong>
-              {train?.current_station_name || 'Not available'}
-            </strong>
-            <small>{train?.current_station_code || ''}</small>
-          </div>
-
-          <div className="dashboard-stat">
-            <span>Next Station / Stop</span>
-            <strong>
-              {nextStop?.station_name ||
-                train?.approaching_station_name ||
-                'Not available'}
-            </strong>
-            <small>
-              {nextStop?.station_code ||
-                train?.approaching_station_code ||
-                ''}
-            </small>
-          </div>
-
-          <div className="dashboard-stat">
-            <span>Estimated Speed</span>
-            <strong>
-              {train?.speed_basis === 'unavailable' ||
-              train?.speed_kmph == null
-                ? 'Not available'
-                : `${train.speed_kmph} km/h`}
-            </strong>
-            <small>
-              {train?.speed_basis === 'estimated'
-                ? 'Estimated speed'
-                : train?.speed_basis || ''}
-            </small>
-          </div>
-        </div>
-      </div>
-
-      {/* Journey progress */}
-      <div className="content-card">
-        <p className="eyebrow">JOURNEY PROGRESS</p>
-
-        <div className="journey-distance">
-          <div>
-            <span className="location-label">Distance covered</span>
-            <h2>
-              {hasDistance ? formatDistance(covered) : 'Not available'}
-            </h2>
-          </div>
-
-          <div>
-            <span className="location-label">Distance remaining</span>
-            <h2>
-              {remaining !== null
-                ? formatDistance(remaining)
-                : 'Not available'}
-            </h2>
-          </div>
-
-          <div>
-            <span className="location-label">Total distance</span>
-            <h2>
-              {hasDistance ? formatDistance(total) : 'Not available'}
-            </h2>
-          </div>
-        </div>
-
-        <div
-          className="journey-progress-track"
-          role="progressbar"
-          aria-valuenow={safeProgress}
-          aria-valuemin="0"
-          aria-valuemax="100"
-          aria-label="Journey progress"
-        >
-          <div
-            className="journey-progress-fill"
-            style={{ width: `${safeProgress}%` }}
-          />
-        </div>
-
-        <div className="journey-progress-labels">
-          <span>{safeProgress.toFixed(1)}% completed</span>
-          <span>{(100 - safeProgress).toFixed(1)}% remaining</span>
-        </div>
-      </div>
-
-      {/* Time information */}
-      <div className="content-card">
-        <p className="eyebrow">TIME AND ARRIVAL INFORMATION</p>
-
-        <div className="dashboard-stats">
-          <div className="dashboard-stat">
-            <span>Next Stop ETA</span>
-            <strong>
-              {formatDateTime(nextStop?.eta)}
-            </strong>
-          </div>
-
-          <div className="dashboard-stat">
-            <span>Expected Destination Arrival</span>
-            <strong>
-              {formatDateTime(train?.eta_destination_at)}
-            </strong>
-          </div>
-
-          <div className="dashboard-stat">
-            <span>Estimated Time Remaining</span>
-            <strong>
-              {remainingTime !== null
-                ? formatDuration(remainingTime)
-                : 'Not available'}
-            </strong>
-          </div>
-
-          <div className="dashboard-stat">
-            <span>Current Delay</span>
-            <strong>
-              {train?.delay_minutes == null
-                ? 'Not available'
-                : train.delay_minutes < 0
-                ? `${Math.abs(train.delay_minutes)} min early`
-                : `${train.delay_minutes} min`}
-            </strong>
-          </div>
-        </div>
-      </div>
-
-      {/* Complete route timeline */}
-      <div className="content-card">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">FULL TRAIN ROUTE</p>
             <h2>Station-by-Station Journey</h2>
-          </div>
 
-          <span className="muted">
-            {stations.length} route points
-          </span>
-        </div>
-
-        {scheduleLoading && stations.length === 0 ? (
-          <p>Loading scheduled station details...</p>
-        ) : stations.length === 0 ? (
-          <div>
-            <p>
-              Station details are not available from the schedule
-              or live-status response.
-            </p>
             <p className="muted small">
-              Check the browser console for the complete schedule response.
-            </p>
-          </div>
-        ) : (
-          <>
-            <p className="muted small">
-              {isUsingSchedule
-                ? 'Showing scheduled train route with live information where available.'
-                : 'Showing stations supplied by the live-status API. Scheduled route was not available.'}
+              {stations.length} stations in this schedule
             </p>
 
-            <div className="station-timeline">
-              {stations.map((station, index) => {
-                const isCurrent =
-                  station.station_code &&
-                  station.station_code ===
-                    train?.current_station_code;
+            {stations.length === 0 ? (
+              <p>
+                No station details were returned for this train.
+              </p>
+            ) : (
+              <div className="station-timeline">
 
-                const isPassed =
-                  !isCurrent &&
-                  (
-                    station.travelled === true ||
-                    station.has_departed === true ||
-                    (
-                      currentIndex >= 0 &&
-                      index < currentIndex
-                    )
-                  );
-
-                const isNext =
-                  !isPassed &&
-                  !isCurrent &&
-                  (
-                    station.station_code ===
-                      train?.approaching_station_code ||
-                    station.station_code ===
-                      nextStop?.station_code
-                  );
-
-                const state = isCurrent
-                  ? 'CURRENT'
-                  : isPassed
-                  ? 'CROSSED'
-                  : isNext
-                  ? 'NEXT'
-                  : 'UPCOMING';
-
-                const arrival =
-                  station.actual_arrival ||
-                  station.eta ||
-                  station.scheduled_arrival;
-
-                const departure =
-                  station.actual_departure ||
-                  station.etd ||
-                  station.scheduled_departure;
-
-                return (
+                {stations.map((station, index) => (
                   <article
-                    className={`station-timeline-item ${state.toLowerCase()}`}
-                    key={`${station.station_code || station.station_name}-${station.sequence || index}`}
+                    className="station-timeline-item upcoming"
+                    key={`${station.station_code || station.station_name}-${index}`}
                   >
                     <div className="station-timeline-marker">
-                      {isPassed ? '✓' : isCurrent ? '●' : index + 1}
+                      {index + 1}
                     </div>
 
                     <div className="station-timeline-content">
+
                       <div className="station-title-row">
                         <div>
-                          <strong>{station.station_name}</strong>
+                          <strong>
+                            {station.station_name}
+                          </strong>
 
                           <p className="muted small">
-                            {station.station_code || 'Code unavailable'}
-                            {' · '}
-                            {station.stop_type || 'Station'}
+                            {station.station_code ||
+                              "Station code unavailable"}
                           </p>
                         </div>
 
-                        <span className="status">{state}</span>
+                        <span className="status">
+                          {station.day
+                            ? `Day ${station.day}`
+                            : `Stop ${index + 1}`}
+                        </span>
                       </div>
 
                       <div className="station-details-grid">
+
                         <span>
-                          Distance:{' '}
-                          <b>{formatDistance(station.distance_km)}</b>
+                          Arrival:{" "}
+                          <b>
+                            {formatTime(
+                              station.scheduled_arrival
+                            )}
+                          </b>
                         </span>
 
                         <span>
-                          Arrival:{' '}
-                          <b>{formatDateTime(arrival)}</b>
+                          Departure:{" "}
+                          <b>
+                            {formatTime(
+                              station.scheduled_departure
+                            )}
+                          </b>
                         </span>
 
                         <span>
-                          Departure:{' '}
-                          <b>{formatDateTime(departure)}</b>
+                          Distance:{" "}
+                          <b>
+                            {formatDistance(
+                              station.distance_km
+                            )}
+                          </b>
                         </span>
 
-                        {station.platform_number && (
-                          <span>
-                            Platform:{' '}
-                            <b>{station.platform_number}</b>
-                          </span>
-                        )}
-
-                        {station.delay_arrival_minutes != null && (
-                          <span>
-                            Arrival delay:{' '}
-                            <b>{station.delay_arrival_minutes} min</b>
-                          </span>
-                        )}
                       </div>
                     </div>
                   </article>
-                );
-              })}
-            </div>
-          </>
-        )}
-      </div>
+                ))}
 
-      {/* Service information */}
-      <div className="content-card">
-        <p className="eyebrow">SERVICE INFORMATION</p>
-
-        <p>
-          Cancellation status:{' '}
-          <strong>
-            {train?.cancellation?.status || 'Not available'}
-          </strong>
-        </p>
-
-        <p>
-          Journey date:{' '}
-          <strong>
-            {train?.journey_date || 'Not available'}
-          </strong>
-        </p>
-
-        <p>
-          Last report:{' '}
-          <strong>
-            {formatDateTime(
-              train?.last_reported_at ||
-              freshness?.last_reported_at
+              </div>
             )}
-          </strong>
-        </p>
+          </div>
 
-        <p>
-          Data confidence:{' '}
-          <strong>{train?.confidence || 'Not available'}</strong>
-        </p>
+          {/* LIVE TRAIN STATUS */}
+          <div className="content-card">
 
-        <p className="muted small">
-          Page refreshed: {formatDateTime(lastUpdated)}
-        </p>
-      </div>
+            <p className="eyebrow">
+              LIVE TRAIN STATUS
+            </p>
 
+            <h2>Running Information</h2>
+
+            {/* LOADING */}
+            {liveLoading && (
+              <p>
+                Fetching live train running information...
+              </p>
+            )}
+
+            {/* ERROR */}
+            {!liveLoading && liveError && (
+              <div className="empty-state">
+                <strong>Live status unavailable</strong>
+
+                <p>{liveError}</p>
+
+                <button
+                  className="button primary"
+                  onClick={loadLiveStatus}
+                >
+                  Retry Live Status
+                </button>
+              </div>
+            )}
+
+            {/* LIVE RESPONSE */}
+            {!liveLoading && !liveError && hasLiveData && (
+              <>
+
+                {/* STALE DATA WARNING */}
+                {isStale && (
+                  <div className="empty-state">
+                    <strong>
+                      Previously cached information
+                    </strong>
+
+                    <p>
+                      The provider returned stale data.
+                      This may not represent the train's
+                      current position.
+                    </p>
+                  </div>
+                )}
+
+                {/* RUNNING STATUS */}
+                <div className="station-details-grid">
+
+                  <span>
+                    Current station:{" "}
+                    <b>
+                      {formatStation(currentStation)}
+                    </b>
+                  </span>
+
+                  <span>
+                    Next station:{" "}
+                    <b>
+                      {formatStation(nextStation)}
+                    </b>
+                  </span>
+
+                  <span>
+                    Speed:{" "}
+                    <b>
+                      {speed !== null && speed !== undefined
+                        ? `${speed} km/h`
+                        : "Not available"}
+                    </b>
+                  </span>
+
+                  <span>
+                    Delay:{" "}
+                    <b>
+                      {delay !== null && delay !== undefined
+                        ? `${delay} minutes`
+                        : "Not available"}
+                    </b>
+                  </span>
+
+                  <span>
+                    {eta?.source === "SCHEDULED"
+                      ? "Scheduled estimated arrival: "
+                      : "Estimated arrival: "}
+
+                    <b>
+                      {formatETA(eta?.value)}
+                    </b>
+                  </span>
+
+                  <span>
+                    Running status:{" "}
+                    <b>
+                      {formatStatus(liveStatus)}
+                    </b>
+                  </span>
+
+                </div>
+
+                {/* ROUTE PROGRESS */}
+                {routeProgress && (
+                  <div style={{ marginTop: "24px" }}>
+
+                    <p className="eyebrow">
+                      ROUTE PROGRESS
+                    </p>
+
+                    <h3>
+                      {routeProgress.completedStops ?? 0}
+                      {" / "}
+                      {routeProgress.totalStops ?? 0}
+                      {" stops completed"}
+                    </h3>
+
+                    <div
+                      style={{
+                        height: "10px",
+                        background: "var(--border-color, #ddd)",
+                        borderRadius: "20px",
+                        overflow: "hidden",
+                        marginTop: "12px"
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: `${Math.min(
+                            100,
+                            Math.max(
+                              0,
+                              Number(routeProgress.percent) || 0
+                            )
+                          )}%`,
+                          height: "100%",
+                          background: "var(--primary, #3b82f6)",
+                          borderRadius: "20px",
+                          transition: "width 0.3s ease"
+                        }}
+                      />
+                    </div>
+
+                    <p className="muted small">
+                      {routeProgress.remainingStops ?? 0}
+                      {" stops remaining"}
+                    </p>
+
+                  </div>
+                )}
+
+                {/* DATA QUALITY INFORMATION */}
+                <div style={{ marginTop: "20px" }}>
+
+                  <p className="muted small">
+                    Data freshness:{" "}
+                    <b>
+                      {freshness?.state || "Not available"}
+                    </b>
+                  </p>
+
+                  <p className="muted small">
+                    Confidence:{" "}
+                    <b>
+                      {liveData.confidence || "Not available"}
+                    </b>
+                  </p>
+
+                  <p className="muted small">
+                    Last observed:{" "}
+                    <b>
+                      {freshness?.observedAt
+                        ? formatETA(freshness.observedAt)
+                        : "Not available"}
+                    </b>
+                  </p>
+
+                  <p className="muted small">
+                    Provider:{" "}
+                    <b>
+                      {liveData.source || "Railway Engine"}
+                    </b>
+                  </p>
+
+                </div>
+
+                {/* PROVIDER MESSAGE */}
+                <p className="muted small">
+                  Source: {liveResponse.source || "Railway Engine"}
+                  {" · "}
+                  {liveResponse.message || ""}
+                </p>
+
+              </>
+            )}
+
+            {/* EMPTY RESPONSE */}
+            {!liveLoading && !liveError && !hasLiveData && (
+              <p>
+                Live running information has not been received yet.
+              </p>
+            )}
+
+            {/* REFRESH LIVE STATUS */}
+            <button
+              className="button primary"
+              onClick={loadLiveStatus}
+              disabled={liveLoading}
+            >
+              {liveLoading
+                ? "Checking..."
+                : "↻ Refresh Live Status"}
+            </button>
+
+          </div>
+
+        </>
+      )}
+
+      {/* BACK BUTTON */}
       <Link className="text-link" to="/dashboard">
         ← Back to Dashboard
       </Link>
 
-      <p className="muted small">
-        Live position and speed depend on railway feed availability.
-        Speed is an estimate when supplied as such by RailCore.
-        Arrival times and platforms may change.
-      </p>
     </section>
   );
 }

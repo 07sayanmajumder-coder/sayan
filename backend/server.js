@@ -10,6 +10,7 @@ import connectDB from "./config/db.js";
 
 import trainRoutes from "./routes/trainRoutes.js";
 import bookingRoutes from "./routes/bookingroutes.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
 
 const app = express();
 
@@ -38,6 +39,7 @@ app.use("/api/trains", trainRoutes);
 // New demo booking APIs
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 // Not found
 app.use((req, res) => {

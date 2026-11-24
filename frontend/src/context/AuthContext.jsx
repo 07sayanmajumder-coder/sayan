@@ -2,7 +2,9 @@
 import {
   createContext,
   useContext,
-  useState
+  useState,
+  useMemo,
+  useCallback
 } from "react";
 
 import {
@@ -15,10 +17,20 @@ import {
   googleProvider
 } from "../firebase";
 
-const AuthContext = createContext(null);
+const AuthContext = createContext(undefined);
 
 const API_URL =
   import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+
+// Normalize user data
+function normalizeUser(user) {
+  if (!user) return null;
+
+  return {
+    ...user,
+    email: String(user.email || "").trim().toLowerCase()
+  };
+}
 
 // Save login session
 function saveSession(data) {
@@ -26,13 +38,15 @@ function saveSession(data) {
     throw new Error("Invalid authentication response from server.");
   }
 
+  const normalizedUser = normalizeUser(data.user);
+
   localStorage.setItem("train-auth-token", data.token);
   localStorage.setItem(
     "train-demo-user",
-    JSON.stringify(data.user)
+    JSON.stringify(normalizedUser)
   );
 
-  return data.user;
+  return normalizedUser;
 }
 
 // Remove login session
@@ -68,9 +82,7 @@ async function authRequest(endpoint, body) {
   }
 
   if (!response.ok || !data.success) {
-    throw new Error(
-      data.message || "Authentication failed."
-    );
+    throw new Error(data.message || "Authentication failed.");
   }
 
   return data;
@@ -79,51 +91,49 @@ async function authRequest(endpoint, body) {
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
     try {
-      return JSON.parse(
-        localStorage.getItem("train-demo-user")
-      ) || null;
-    } catch {
+      const storedUser = localStorage.getItem("train-demo-user");
+
+      return normalizeUser(
+        storedUser ? JSON.parse(storedUser) : null
+      );
+    } catch (error) {
+      console.error("Session restoration error:", error);
+      clearSession();
       return null;
     }
   });
 
   // EMAIL SIGNUP
-  async function signup({ name, email, password }) {
+  const signup = useCallback(async ({ name, email, password }) => {
     const data = await authRequest("register", {
-      name,
-      email,
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
       password
     });
 
     const loggedInUser = saveSession(data);
-
     setUser(loggedInUser);
 
     return loggedInUser;
-  }
+  }, []);
 
   // EMAIL LOGIN
-  async function login({ email, password }) {
+  const login = useCallback(async ({ email, password }) => {
     const data = await authRequest("login", {
-      email,
+      email: email.trim().toLowerCase(),
       password
     });
 
     const loggedInUser = saveSession(data);
-
     setUser(loggedInUser);
 
     return loggedInUser;
-  }
+  }, []);
 
   // GOOGLE LOGIN / SIGNUP
-  async function googleLogin() {
+  const googleLogin = useCallback(async () => {
     try {
-      const result = await signInWithPopup(
-        auth,
-        googleProvider
-      );
-
+      const result = await signInWithPopup(auth, googleProvider);
       const idToken = await result.user.getIdToken();
 
       const data = await authRequest("google", {
@@ -131,13 +141,11 @@ export function AuthProvider({ children }) {
       });
 
       const loggedInUser = saveSession(data);
-
       setUser(loggedInUser);
 
       return loggedInUser;
 
     } catch (error) {
-      // Close Firebase session if backend authentication fails
       try {
         await signOut(auth);
       } catch (signOutError) {
@@ -163,42 +171,58 @@ export function AuthProvider({ children }) {
         );
       }
 
-      throw new Error(
-        error.message || "Google login failed."
-      );
+      throw new Error(error.message || "Google login failed.");
     }
-  }
+  }, []);
 
   // LOGOUT
-  async function logout() {
+  const logout = useCallback(async () => {
     clearSession();
     setUser(null);
 
     try {
       await signOut(auth);
     } catch (error) {
-      console.error(
-        "Firebase logout error:",
-        error.message
-      );
+      console.error("Firebase logout error:", error.message);
     }
-  }
+  }, []);
+
+  // Current user's email for booking and notifications
+  const userEmail = user?.email || "";
+
+  // Shared authentication context
+  const contextValue = useMemo(() => ({
+    user,
+    userEmail,
+    signup,
+    login,
+    googleLogin,
+    logout
+  }), [
+    user,
+    userEmail,
+    signup,
+    login,
+    googleLogin,
+    logout
+  ]);
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        signup,
-        login,
-        googleLogin,
-        logout
-      }}
-    >
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );
 }
 
+// Authentication hook
 export function useAuth() {
-  return useContext(AuthContext);
+  const context = useContext(AuthContext);
+
+  if (context === undefined) {
+    throw new Error(
+      "useAuth must be used inside an AuthProvider. Check main.jsx."
+    );
+  }
+
+  return context;
 }

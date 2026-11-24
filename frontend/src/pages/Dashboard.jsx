@@ -12,70 +12,88 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Fetch real train catalog
+  // Fetch train catalog
   useEffect(() => {
+    let isMounted = true;
+
     const fetchTrains = async () => {
       try {
         setLoading(true);
         setError('');
 
-        const response = await getTrains();
+        const records = await getTrains();
 
-        // Supports common RailCore response structures
-        const records =
-          response?.data?.results ||
-          response?.results ||
-          response?.data ||
-          [];
-
+        // getTrains() already returns an array
         if (!Array.isArray(records)) {
-          throw new Error('Unexpected train catalog response.');
+          throw new Error('Train catalog did not return an array.');
         }
 
-        // Map API fields to dashboard fields
         const formattedTrains = records.map((train) => ({
           number: String(
-            train.train_number || train.number || ''
+            train.trainNumber ||
+            train.train_number ||
+            train.number ||
+            ''
           ),
+
           name:
+            train.trainName ||
             train.train_name ||
             train.name ||
             'Unknown Train',
+
           from:
             train.source_name ||
             train.from_station_name ||
+            train.sourceName ||
             train.source ||
             train.from ||
+            train.sourceCode ||
             train.source_code ||
+            train.schedule?.[0]?.stationName ||
+            train.schedule?.[0]?.stationCode ||
             'Not available',
+
           to:
             train.destination_name ||
             train.to_station_name ||
+            train.destinationName ||
             train.destination ||
             train.to ||
+            train.destinationCode ||
             train.destination_code ||
-            'Not available',
-
-          // These are not provided by the basic train catalog.
-          status: null,
-          currentStation: null,
-          nextStation: null,
-          departure: null,
-          arrival: null,
-          platform: null,
-          delay: null
+            train.schedule?.[train.schedule.length - 1]?.stationName ||
+            train.schedule?.[train.schedule.length - 1]?.stationCode ||
+            'Not available'
         }));
 
-        setTrains(formattedTrains);
+        // Remove invalid records
+        const validTrains = formattedTrains.filter(
+          (train) => train.number
+        );
+
+        if (isMounted) {
+          setTrains(validTrains);
+          console.log('Dashboard trains:', validTrains);
+        }
       } catch (err) {
         console.error('Error fetching trains:', err);
-        setError(err.message || 'Unable to load trains.');
+
+        if (isMounted) {
+          setError(err.message || 'Unable to load trains.');
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchTrains();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Search trains
@@ -118,7 +136,7 @@ export default function Dashboard() {
         </Link>
       </div>
 
-      {/* Welcome message for signed-in users */}
+      {/* Welcome message */}
       {user && (
         <div className="empty-state">
           <strong>
@@ -149,7 +167,7 @@ export default function Dashboard() {
 
         <div className="dashboard-stat">
           <span>Data Source</span>
-          <strong>RailCore</strong>
+          <strong>Local / RailCore</strong>
         </div>
       </div>
 
@@ -173,7 +191,7 @@ export default function Dashboard() {
           Search by train number, train name, source or destination.
         </p>
 
-        {/* Search box */}
+        {/* Search */}
         <div className="train-search-wrap">
           <span className="search-icon" aria-hidden="true">
             ⌕
@@ -276,8 +294,8 @@ export default function Dashboard() {
                 </div>
 
                 <p className="section-description">
-                  Live location and running status are available
-                  through the separate live tracking service.
+                  Live location and running status require a
+                  separate live tracking service.
                 </p>
 
                 <Link
@@ -291,10 +309,16 @@ export default function Dashboard() {
 
             {filteredTrains.length === 0 && (
               <div className="empty-state search-empty">
-                <strong>No matching train found.</strong>
+                <strong>
+                  {trains.length === 0
+                    ? 'No trains available.'
+                    : 'No matching train found.'}
+                </strong>
 
                 <p>
-                  Try another train name, number or station.
+                  {trains.length === 0
+                    ? 'The train catalog returned no records.'
+                    : 'Try another train name, number or station.'}
                 </p>
 
                 <button
@@ -318,14 +342,14 @@ export default function Dashboard() {
             <h2>Train Catalog</h2>
           </div>
 
-          <span className="muted">RailCore API</span>
+          <span className="muted">Local / RailCore API</span>
         </div>
 
         <p className="section-description">
           This catalog displays train names, numbers, source
-          stations and destinations returned by the API.
-          Live running status, platform information, seat
-          availability and fares require separate data sources.
+          stations and destinations. Live running status, platform
+          information, seat availability and fares require separate
+          data sources.
         </p>
       </section>
 

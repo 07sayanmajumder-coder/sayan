@@ -1,566 +1,134 @@
 
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
-import {
-  getTrains,
-  getTrainSchedule
-} from '../data/trains';
-
-import { useAuth } from '../context/AuthContext';
-
-const API_URL = 'http://localhost:5000/api';
-
-const STEPS = [
-  'Validating Details',
-  'Saving Booking',
-  'Booking Processed'
-];
-
-const getToday = () => {
-  const now = new Date();
-  const localDate = new Date(
-    now.getTime() - now.getTimezoneOffset() * 60000
-  );
-
-  return localDate.toISOString().slice(0, 10);
-};
-
-const getStationName = (station) => {
-  if (!station) return '';
-
-  if (typeof station === 'string') return station;
-
-  return (
-    station.station_name ||
-    station.stationName ||
-    station.name ||
-    station.station_code ||
-    station.stationCode ||
-    station.code ||
-    ''
-  );
-};
-
-export default function BookTicket() {
+export default function BookingTicket() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const location = useLocation();
 
-  const [trains, setTrains] = useState([]);
-  const [loadingTrains, setLoadingTrains] = useState(true);
-  const [trainError, setTrainError] = useState('');
+  let savedBooking = null;
 
-  const [trainNumber, setTrainNumber] = useState('');
-  const [journeyDate, setJourneyDate] = useState(getToday());
-
-  const [route, setRoute] = useState({
-    from: '',
-    to: ''
-  });
-
-  const [loadingRoute, setLoadingRoute] = useState(false);
-
-  const [passenger, setPassenger] = useState({
-    name: '',
-    age: '',
-    gender: '',
-    seatClass: 'Sleeper'
-  });
-
-  const [step, setStep] = useState(-1);
-  const [message, setMessage] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  // Load train catalog.
-  useEffect(() => {
-    async function fetchTrains() {
-      try {
-        setLoadingTrains(true);
-        setTrainError('');
-
-        const response = await getTrains();
-
-        const records = Array.isArray(response)
-          ? response
-          : response?.results ||
-            response?.trains ||
-            response?.data?.results ||
-            response?.data ||
-            [];
-
-        if (!Array.isArray(records)) {
-          throw new Error('Invalid train catalog response.');
-        }
-
-        const formattedTrains = records
-          .map((item) => ({
-            number: String(
-              item.train_number || item.number || ''
-            ),
-            name:
-              item.train_name ||
-              item.name ||
-              'Unknown Train',
-            from:
-              item.source_name ||
-              item.from_station_name ||
-              item.source ||
-              item.from ||
-              item.source_code ||
-              item.source_station_code ||
-              '',
-            to:
-              item.destination_name ||
-              item.to_station_name ||
-              item.destination ||
-              item.to ||
-              item.destination_code ||
-              item.destination_station_code ||
-              ''
-          }))
-          .filter((item) => item.number);
-
-        setTrains(formattedTrains);
-      } catch (error) {
-        console.error('Train loading error:', error);
-        setTrainError(error.message);
-      } finally {
-        setLoadingTrains(false);
-      }
-    }
-
-    fetchTrains();
-  }, []);
-
-  const train = trains.find(
-    (item) => item.number === trainNumber
-  );
-
-  // Fetch the actual route whenever the selected train changes.
-  useEffect(() => {
-    if (!trainNumber || !train) {
-      setRoute({ from: '', to: '' });
-      return;
-    }
-
-    let cancelled = false;
-
-    async function fetchSelectedTrainRoute() {
-      try {
-        setLoadingRoute(true);
-
-        // Start with the information available in the catalog.
-        setRoute({
-          from: train.from || '',
-          to: train.to || ''
-        });
-
-        const schedule = await getTrainSchedule(trainNumber);
-
-        if (cancelled) return;
-
-        const stops = Array.isArray(schedule?.stops)
-          ? schedule.stops
-          : [];
-
-        const firstStop = stops[0];
-        const lastStop = stops[stops.length - 1];
-
-        const source =
-          getStationName(schedule?.source_station) ||
-          schedule?.source_station_name ||
-          schedule?.source_name ||
-          schedule?.source_station_code ||
-          getStationName(firstStop) ||
-          train.from;
-
-        const destination =
-          getStationName(schedule?.destination_station) ||
-          schedule?.destination_station_name ||
-          schedule?.destination_name ||
-          schedule?.destination_station_code ||
-          getStationName(lastStop) ||
-          train.to;
-
-        setRoute({
-          from: source || 'Not available',
-          to: destination || 'Not available'
-        });
-      } catch (error) {
-        console.error('Train route loading error:', error);
-
-        if (!cancelled) {
-          setRoute({
-            from: train.from || 'Not available',
-            to: train.to || 'Not available'
-          });
-        }
-      } finally {
-        if (!cancelled) {
-          setLoadingRoute(false);
-        }
-      }
-    }
-
-    fetchSelectedTrainRoute();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [trainNumber, train]);
-
-  async function startBooking(e) {
-    e.preventDefault();
-
-    if (busy) return;
-
-    if (!user?.email) {
-      setMessage('Please log in before booking a train.');
-      return;
-    }
-
-    if (
-      !train ||
-      !passenger.name.trim() ||
-      !passenger.age ||
-      !passenger.gender ||
-      !journeyDate
-    ) {
-      setMessage('Please complete all booking details.');
-      return;
-    }
-
-    if (loadingRoute) {
-      setMessage('Please wait while the train route loads.');
-      return;
-    }
-
-    if (
-      !route.from ||
-      !route.to ||
-      route.from === 'Not available' ||
-      route.to === 'Not available'
-    ) {
-      setMessage(
-        'The train route could not be loaded. Please select the train again.'
-      );
-      return;
-    }
-
-    setBusy(true);
-    setStep(0);
-    setMessage('Validating your booking details...');
-
-    try {
-      const age = Number(passenger.age);
-
-      if (!Number.isInteger(age) || age < 1 || age > 120) {
-        throw new Error('Please enter a valid passenger age.');
-      }
-
-      if (journeyDate < getToday()) {
-        throw new Error('Journey date cannot be in the past.');
-      }
-
-      const bookingData = {
-        userName: user.name || passenger.name.trim(),
-        userEmail: user.email,
-
-        trainNumber: train.number,
-        trainName: train.name,
-
-        from: route.from,
-        to: route.to,
-
-        journeyDate,
-
-        passengerName: passenger.name.trim(),
-        passengerAge: age,
-        passengerGender: passenger.gender,
-
-        travelClass: passenger.seatClass
-      };
-
-      setStep(1);
-      setMessage(
-        'Saving booking in MongoDB and sending Gmail confirmation...'
-      );
-
-      const response = await fetch(`${API_URL}/bookings`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(bookingData)
-      });
-
-      const result = await response.json();
-
-      if (!response.ok || !result.success || !result.booking) {
-        throw new Error(
-          result.message || 'Unable to complete demo booking.'
-        );
-      }
-
-      const booking = result.booking;
-
-      localStorage.setItem(
-        'latestBooking',
-        JSON.stringify(booking)
-      );
-
-      setStep(2);
-
-      setMessage(
-        booking.emailSent
-          ? 'Demo booking saved! Confirmation email sent.'
-          : 'Demo booking saved, but email delivery failed.'
-      );
-
-      navigate('/booking-confirmation', {
-        state: { booking }
-      });
-    } catch (error) {
-      console.error('Booking error:', error);
-
-      setStep(-1);
-      setMessage(
-        error.message || 'Booking demonstration failed.'
-      );
-    } finally {
-      setBusy(false);
-    }
+  try {
+    savedBooking = JSON.parse(
+      localStorage.getItem('latestBooking') || 'null'
+    );
+  } catch {
+    savedBooking = null;
   }
 
-  function handleTrainChange(e) {
-    setTrainNumber(e.target.value);
-    setStep(-1);
-    setMessage('');
+  const booking = location.state?.booking || savedBooking;
+
+  if (!booking) {
+    return (
+      <section className="page narrow-page">
+        <div className="content-card">
+          <h1>Booking Not Found</h1>
+          <p>
+            We could not find this booking. Please open My Bookings
+            and select an existing ticket.
+          </p>
+
+          <button
+            className="button primary"
+            onClick={() => navigate('/my-bookings')}
+          >
+            My Bookings
+          </button>
+        </div>
+      </section>
+    );
   }
+
+  const reference =
+    booking.pnr || booking.bookingId || booking._id || 'N/A';
 
   return (
     <section className="page narrow-page">
-      <p className="eyebrow">BOOK YOUR JOURNEY</p>
-
-      <h1>Railway Ticket Booking</h1>
-
-      <p className="lead">
-        Select a train and enter your journey and passenger details
-        to complete your demo booking.
-      </p>
-
       <div className="content-card">
-        {loadingTrains ? (
-          <p>Loading trains from RailCore...</p>
-        ) : trainError ? (
-          <div className="empty-state">
-            <strong>Unable to load trains.</strong>
-            <p>{trainError}</p>
+        <p className="eyebrow">YOUR BOOKING DETAILS</p>
 
-            <button
-              className="button secondary"
-              type="button"
-              onClick={() => window.location.reload()}
-            >
-              Try Again
-            </button>
-          </div>
-        ) : (
-          <form className="stack-form" onSubmit={startBooking}>
-            <label>
-              Logged-in user
-              <input
-                className="field"
-                value={user?.email || 'Please log in'}
-                readOnly
-              />
-            </label>
+        <h1>Railway Booking Ticket</h1>
 
-            <label>
-              Select train
-              <select
-                className="field"
-                required
-                value={trainNumber}
-                onChange={handleTrainChange}
-                disabled={busy}
-              >
-                <option value="">Choose a train</option>
+        <div className="booking-summary">
+          <span>
+            Booking Reference: <b>{reference}</b>
+          </span>
 
-                {trains.map((item) => (
-                  <option
-                    key={item.number}
-                    value={item.number}
-                  >
-                    {item.number} — {item.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+          <span>
+            Status:{' '}
+            <b>
+              {booking.bookingStatus || booking.status || 'Booked'}
+            </b>
+          </span>
+        </div>
 
-            {train && (
-              <div className="booking-summary">
-                <span>
-                  Train number: <b>{train.number}</b>
-                </span>
+        <h2>Train Details</h2>
 
-                <span>
-                  Train name: <b>{train.name}</b>
-                </span>
+        <div className="booking-summary">
+          <span>
+            Train Number: <b>{booking.trainNumber || 'N/A'}</b>
+          </span>
 
-                <span>
-                  Route:{' '}
-                  <b>
-                    {loadingRoute
-                      ? 'Loading route...'
-                      : `${route.from || 'Not available'} → ${route.to || 'Not available'}`}
-                  </b>
-                </span>
-              </div>
-            )}
+          <span>
+            Train Name: <b>{booking.trainName || 'N/A'}</b>
+          </span>
 
-            <label>
-              Journey date
-              <input
-                className="field"
-                type="date"
-                min={getToday()}
-                required
-                value={journeyDate}
-                onChange={(e) => setJourneyDate(e.target.value)}
-                disabled={busy}
-              />
-            </label>
+          <span>
+            From: <b>{booking.from || 'N/A'}</b>
+          </span>
 
-            <label>
-              Passenger name
-              <input
-                className="field"
-                type="text"
-                required
-                value={passenger.name}
-                onChange={(e) =>
-                  setPassenger({
-                    ...passenger,
-                    name: e.target.value
-                  })
-                }
-                disabled={busy}
-              />
-            </label>
+          <span>
+            To: <b>{booking.to || 'N/A'}</b>
+          </span>
 
-            <label>
-              Age
-              <input
-                className="field"
-                type="number"
-                min="1"
-                max="120"
-                required
-                value={passenger.age}
-                onChange={(e) =>
-                  setPassenger({
-                    ...passenger,
-                    age: e.target.value
-                  })
-                }
-                disabled={busy}
-              />
-            </label>
+          <span>
+            Journey Date: <b>{booking.journeyDate || 'N/A'}</b>
+          </span>
+        </div>
 
-            <label>
-              Gender
-              <select
-                className="field"
-                required
-                value={passenger.gender}
-                onChange={(e) =>
-                  setPassenger({
-                    ...passenger,
-                    gender: e.target.value
-                  })
-                }
-                disabled={busy}
-              >
-                <option value="">Select gender</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-              </select>
-            </label>
+        <h2>Passenger Details</h2>
 
-            <label>
-              Seat class
-              <select
-                className="field"
-                value={passenger.seatClass}
-                onChange={(e) =>
-                  setPassenger({
-                    ...passenger,
-                    seatClass: e.target.value
-                  })
-                }
-                disabled={busy}
-              >
-                <option>Sleeper</option>
-                <option>AC 3 Tier</option>
-                <option>AC 2 Tier</option>
-                <option>First Class</option>
-              </select>
-            </label>
+        <div className="booking-summary">
+          <span>
+            Passenger Name: <b>{booking.passengerName || 'N/A'}</b>
+          </span>
 
-            <button
-              className="button primary full-width"
-              type="submit"
-              disabled={!train || busy || !user?.email || loadingRoute}
-            >
-              {busy
-                ? 'Processing Booking...'
-                : loadingRoute
-                  ? 'Loading Train Route...'
-                  : 'Confirm Demo Booking'}
-            </button>
-          </form>
-        )}
+          <span>
+            Age: <b>{booking.passengerAge ?? 'N/A'}</b>
+          </span>
 
-        {step >= 0 && (
-          <div className="workflow content-card">
-            <h2>Booking Workflow</h2>
+          <span>
+            Gender: <b>{booking.passengerGender || 'N/A'}</b>
+          </span>
 
-            <div className="workflow-steps">
-              {STEPS.map((label, index) => (
-                <div
-                  className={`workflow-step ${
-                    index < step
-                      ? 'complete'
-                      : index === step
-                        ? 'active'
-                        : ''
-                  }`}
-                  key={label}
-                >
-                  <span>
-                    {index < step ? '✓' : index + 1}
-                  </span>
+          <span>
+            Travel Class: <b>{booking.travelClass || 'N/A'}</b>
+          </span>
 
-                  {label}
-                </div>
-              ))}
-            </div>
+          <span>
+            Email: <b>{booking.userEmail || booking.email || 'N/A'}</b>
+          </span>
+        </div>
 
-            <p className="workflow-message">{message}</p>
-          </div>
-        )}
+        <div className="button-group">
+          <button
+            className="button primary"
+            onClick={() => window.print()}
+          >
+            Print Ticket
+          </button>
 
-        {step === -1 && message && (
-          <p className="workflow-message">{message}</p>
-        )}
+          <button
+            className="button secondary"
+            onClick={() => navigate('/my-bookings')}
+          >
+            Back to My Bookings
+          </button>
+        </div>
       </div>
 
       <p className="muted small">
-        This is a demo booking system. It saves booking details
-        in MongoDB and sends email confirmation. It does not
-        reserve real railway seats, process payments, or generate
-        an official Indian Railways PNR.
+        Demo booking details only. This is not an official railway
+        ticket or a valid Indian Railways PNR.
       </p>
     </section>
   );

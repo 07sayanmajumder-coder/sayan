@@ -1,6 +1,11 @@
+
 import Booking from "../models/Booking.js";
 import sendBookingConfirmation from "../services/emailService.js";
+import Notification from "../models/Notification.js";
 import mongoose from "mongoose";
+
+const isValidEmail = (email) =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
 // Delete one booking belonging to the supplied email
 export const deleteBooking = async (req, res, next) => {
@@ -15,7 +20,7 @@ export const deleteBooking = async (req, res, next) => {
       });
     }
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (!isValidEmail(email)) {
       return res.status(400).json({
         success: false,
         message: "A valid email is required."
@@ -48,7 +53,7 @@ export const deleteAllBookings = async (req, res, next) => {
   try {
     const email = String(req.query.email || "").trim().toLowerCase();
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (!isValidEmail(email)) {
       return res.status(400).json({
         success: false,
         message: "A valid email is required."
@@ -117,7 +122,7 @@ export const createBooking = async (req, res, next) => {
     // Validate email
     const email = userEmail.trim().toLowerCase();
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (!isValidEmail(email)) {
       return res.status(400).json({
         success: false,
         message: "Please provide a valid email address."
@@ -208,6 +213,7 @@ export const createBooking = async (req, res, next) => {
       booking.emailError = null;
 
       await booking.save();
+
     } catch (emailError) {
       console.error("Booking email error:", emailError.message);
 
@@ -215,6 +221,33 @@ export const createBooking = async (req, res, next) => {
       booking.emailError = "Email delivery failed. Please retry.";
 
       await booking.save();
+    }
+
+    // Create booking notification in MongoDB
+    try {
+      await Notification.create({
+        userEmail: booking.userEmail,
+        type: "booking",
+        title: "Booking Confirmed",
+        message: `Your demo booking for ${booking.trainName} (${booking.trainNumber}) from ${booking.from} to ${booking.to} has been saved successfully. ${
+          booking.emailSent
+            ? "Your confirmation email has also been sent."
+            : "However, your confirmation email could not be sent."
+        }`,
+        isRead: false,
+        relatedBooking: booking._id
+      });
+
+      console.log(
+        "Booking notification created:",
+        booking.userEmail
+      );
+
+    } catch (notificationError) {
+      console.error(
+        "Booking notification error:",
+        notificationError.message
+      );
     }
 
     // Send response to frontend
@@ -242,6 +275,7 @@ export const createBooking = async (req, res, next) => {
         createdAt: booking.createdAt
       }
     });
+
   } catch (error) {
     next(error);
   }
@@ -252,7 +286,7 @@ export const getBookings = async (req, res, next) => {
   try {
     const email = String(req.query.email || "").trim().toLowerCase();
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (!isValidEmail(email)) {
       return res.status(400).json({
         success: false,
         message: "A valid email query is required."
@@ -270,6 +304,7 @@ export const getBookings = async (req, res, next) => {
       count: bookings.length,
       bookings
     });
+
   } catch (error) {
     next(error);
   }

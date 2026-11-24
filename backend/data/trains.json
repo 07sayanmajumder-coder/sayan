@@ -1,0 +1,141 @@
+
+[
+  {
+    "trainNumber": "12301",
+    "trainName": "Howrah Rajdhani Express",
+    "source": "HWH",
+    "destination": "NDLS",
+    "sourceName": "Howrah Junction",
+    "destinationName": "New Delhi",
+    "sampleData": true,
+    "schedule": [
+      {
+        "stationCode": "HWH",
+        "stationName": "Howrah Junction",
+        "arrivalTime": null,
+        "departureTime": "16:55",
+        "day": 1
+      },
+      {
+        "stationCode": "ASN",
+        "stationName": "Asansol Junction",
+        "arrivalTime": "19:20",
+        "departureTime": "19:22",
+        "day": 1
+      },
+      {
+        "stationCode": "DHN",
+        "stationName": "Dhanbad Junction",
+        "arrivalTime": "20:35",
+        "departureTime": "20:37",
+        "day": 1
+      },
+      {
+        "stationCode": "GAYA",
+        "stationName": "Gaya Junction",
+        "arrivalTime": "22:45",
+        "departureTime": "22:47",
+        "day": 1
+      },
+      {
+        "stationCode": "NDLS",
+        "stationName": "New Delhi",
+        "arrivalTime": "10:00",
+        "departureTime": null,
+        "day": 2
+      }
+    ]
+  },
+  {
+    "trainNumber": "12302",
+    "trainName": "New Delhi Howrah Rajdhani Express",
+    "source": "NDLS",
+    "destination": "HWH",
+    "sourceName": "New Delhi",
+    "destinationName": "Howrah Junction",
+    "sampleData": true,
+    "schedule": [
+      {
+        "stationCode": "NDLS",
+        "stationName": "New Delhi",
+        "arrivalTime": null,
+        "departureTime": "16:55",
+        "day": 1
+      },
+      {
+        "stationCode": "GAYA",
+        "stationName": "Gaya Junction",
+        "arrivalTime": "04:05",
+        "departureTime": "04:07",
+        "day": 2
+      },
+      {
+        "stationCode": "DHN",
+        "stationName": "Dhanbad Junction",
+        "arrivalTime": "06:15",
+        "departureTime": "06:17",
+        "day": 2
+      },
+      {
+        "stationCode": "ASN",
+        "stationName": "Asansol Junction",
+        "arrivalTime": "07:25",
+        "departureTime": "07:27",
+        "day": 2
+      },
+      {
+        "stationCode": "HWH",
+        "stationName": "Howrah Junction",
+        "arrivalTime": "10:00",
+        "departureTime": null,
+        "day": 2
+      }
+    ]
+  },
+  {
+    "trainNumber": "12841",
+    "trainName": "Coromandel Express",
+    "source": "SHM",
+    "destination": "MAS",
+    "sourceName": "Shalimar",
+    "destinationName": "Chennai Central",
+    "sampleData": true,
+    "schedule": [
+      {
+        "stationCode": "SHM",
+        "stationName": "Shalimar",
+        "arrivalTime": null,
+        "departureTime": "15:00",
+        "day": 1
+      },
+      {
+        "stationCode": "KGP",
+        "stationName": "Kharagpur Junction",
+        "arrivalTime": "16:30",
+        "departureTime": "16:32",
+        "day": 1
+      },
+      {
+        "stationCode": "BBS",
+        "stationName": "Bhubaneswar",
+        "arrivalTime": "21:00",
+        "departureTime": "21:05",
+        "day": 1
+      },
+      {
+        "stationCode": "VSKP",
+        "stationName": "Visakhapatnam",
+        "arrivalTime": "04:30",
+        "departureTime": "04:35",
+        "day": 2
+      },
+      {
+        "stationCode": "MAS",
+        "stationName": "Chennai Central",
+        "arrivalTime": "16:00",
+        "departureTime": null,
+        "day": 2
+      }
+    ]
+  }
+]
