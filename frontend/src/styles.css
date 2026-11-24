@@ -1,0 +1,77 @@
+:root{font-family:Inter,Segoe UI,Arial,sans-serif;color:#172033;background:#f5f7fc;font-synthesis:none;text-rendering:optimizeLegibility}*{box-sizing:border-box}body{margin:0}.app-shell{min-height:100vh;display:flex;flex-direction:column}.site-header{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:18px max(5vw,24px);background:#fff;border-bottom:1px solid #e7eaf2;position:sticky;top:0;z-index:5}.brand{font-size:1.15rem;font-weight:800;color:#27356f;text-decoration:none;white-space:nowrap}.nav-links{display:flex;align-items:center;gap:22px;flex-wrap:wrap}.nav-links a,.site-footer a{color:#536078;text-decoration:none;font-weight:600}.nav-links a.active{color:#4456bd}.nav-links .nav-cta{background:#4658c5;color:white;padding:10px 15px;border-radius:9px}.nav-button{border:0;background:#fff;color:#b42318;font-weight:700;font-size:.95rem;cursor:pointer}.welcome-user{font-size:.88rem;color:#69758a}.main-content{flex:1}.page{max-width:1100px;margin:0 auto;padding:54px 24px}.hero{padding:65px 7%;border-radius:24px;background:linear-gradient(120deg,#18265d,#465ac8);color:white;box-shadow:0 18px 50px #26377c25}.eyebrow{font-size:.75rem;letter-spacing:.16em;font-weight:800;color:#6675d5;margin:0 0 12px}.hero .eyebrow{color:#c7d0ff}.hero h1{font-size:clamp(2.4rem,6vw,4.4rem);line-height:1.05;margin:0}.hero h1 span{color:#bfcaff}.hero-copy{max-width:600px;line-height:1.7;color:#e0e5ff;font-size:1.05rem}.hero-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:26px}.button{border:0;border-radius:10px;padding:13px 18px;font-size:.95rem;font-weight:750;cursor:pointer;text-decoration:none;display:inline-flex;justify-content:center;align-items:center}.button:disabled{opacity:.55;cursor:not-allowed}.primary{background:#4658c5;color:white}.secondary{background:white;color:#293775}.full-width{width:100%}.section{padding-top:55px}.section-heading{display:flex;align-items:end;justify-content:space-between;gap:15px}.section-heading h2{margin:0;font-size:1.8rem}.section-heading .eyebrow{margin-bottom:7px}.field{width:100%;border:1px solid #d8deeb;background:white;border-radius:9px;padding:13px 14px;font:inherit;color:#172033;outline:none}.field:focus{border-color:#6575d8;box-shadow:0 0 0 3px #6575d81a}.search-field{margin:20px 0}.train-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}.train-card,.content-card,.auth-card{background:white;border:1px solid #e5e9f2;border-radius:15px;padding:21px;box-shadow:0 8px 25px #25345c08}.train-card-top,.train-meta,.booking-summary{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}.train-card-top strong{max-width:70%}.status{font-size:.75rem;font-weight:800;padding:5px 9px;border-radius:30px}.on-time{background:#e5f6eb;color:#207644}.delayed{background:#fff0ed;color:#b93828}.train-route{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:23px 0;font-weight:750}.train-route b{color:#6978d1}.train-meta{font-size:.82rem;color:#778198}.train-meta span{display:grid;gap:4px}.muted{color:#7b8498}.small{font-size:.82rem}.text-link{display:inline-block;margin-top:9px;color:#4658c5;font-weight:750;text-decoration:none}.empty-state{color:#778198}.narrow-page{max-width:760px}.narrow-page h1,.auth-card h1{font-size:2.5rem;margin:0 0 10px}.lead{font-size:1.08rem;color:#68748b;line-height:1.7}.content-card{margin-top:25px}.feature-list{line-height:2;color:#4d5870;padding-left:22px}.stack-form{display:flex;flex-direction:column;gap:16px}.stack-form label{display:flex;flex-direction:column;gap:7px;font-size:.9rem;font-weight:700;color:#39445a}.auth-page{padding:55px 20px;display:flex;justify-content:center}.auth-card{width:min(100%,470px);padding:32px}.auth-switch{text-align:center;color:#737e91;margin:20px 0 0}.auth-switch a{color:#4658c5;font-weight:750}.error-message{background:#fff0ef;color:#b42318;padding:11px;border-radius:8px;font-size:.9rem}.success-message{background:#e8f7ed;color:#207644;padding:14px;border-radius:9px}.booking-summary{background:#f2f4ff;border-radius:9px;padding:13px;color:#4a5671}.workflow{margin-top:24px;background:#f8f9ff}.workflow h2{margin-top:0}.workflow-steps{display:grid;gap:10px}.workflow-step{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid #dce1ee;border-radius:9px;color:#8790a2;background:white;font-weight:700}.workflow-step span{display:grid;place-items:center;width:27px;height:27px;border-radius:50%;background:#edf0f7}.workflow-step.active{background:#4658c5;color:white;border-color:#4658c5}.workflow-step.active span{background:#ffffff35}.workflow-step.complete{color:#3152a7;background:#edf0ff;border-color:#cbd3ff}.workflow-message{text-align:center;font-weight:750;margin:18px 0}.ticket-result{background:#e9f7ed;border:1px solid #c8e9d1;color:#205b36;padding:16px;border-radius:10px}.ticket-result h3{margin-top:0}.site-footer{display:flex;justify-content:space-between;gap:15px;flex-wrap:wrap;padding:22px max(5vw,24px);background:#fff;border-top:1px solid #e7eaf2;color:#818ba0;font-size:.85rem}.site-footer div{display:flex;gap:18px}@media(max-width:760px){.site-header{align-items:flex-start;flex-direction:column}.nav-links{gap:13px}.welcome-user{display:none}.page{padding:35px 18px}.hero{padding:42px 25px}.section-heading{align-items:flex-start;flex-direction:column}.auth-card{padding:24px}}
+/* Train status search and timetable */
+.section-description{color:#737f95;line-height:1.65;margin:12px 0 18px;max-width:760px}.train-search-wrap{position:relative;margin:18px 0 22px}.train-search-wrap .search-field{margin:0;padding-left:48px;padding-right:70px}.search-icon{position:absolute;left:17px;top:50%;transform:translateY(-55%);font-size:1.8rem;line-height:1;color:#6573c9;z-index:1}.clear-search{position:absolute;right:12px;top:50%;transform:translateY(-50%);border:0;background:transparent;color:#4658c5;font-weight:750;cursor:pointer}.status-card{min-width:0}.status-card .train-card-top{align-items:flex-start}.status-card .train-card-top strong{display:block;max-width:100%}.status-card .train-card-top .muted{margin:6px 0 0}.location-panel{position:relative;margin:20px 0;padding:15px 14px;background:#f6f8ff;border:1px solid #e5e9fb;border-radius:11px}.location-item{display:flex;align-items:center;gap:12px;position:relative;z-index:1}.location-item strong{display:block;color:#29344c;margin-top:3px}.location-label{display:block;color:#818ba0;font-size:.73rem}.location-dot{width:11px;height:11px;flex:0 0 11px;border-radius:50%;border:3px solid white;box-shadow:0 0 0 1px #b8c2e4}.current-dot{background:#4658c5}.next-dot{background:#1e9a62}.location-connector{height:19px;border-left:2px dashed #c5cce4;margin:2px 0 2px 5px}.status-meta{justify-content:flex-start;column-gap:22px;row-gap:12px}.status-meta span{min-width:65px}.data-notice{margin:14px 0 0;color:#8992a4;font-size:.8rem;line-height:1.6}.search-empty{grid-column:1/-1;padding:30px;background:#fff;border:1px dashed #cbd2e3;border-radius:12px;text-align:center}.search-empty p{color:#7b8498}.timetable-section{padding-bottom:25px}.table-scroll{width:100%;overflow-x:auto;background:#fff;border:1px solid #e5e9f2;border-radius:14px;box-shadow:0 8px 25px #25345c08}.timetable{width:100%;border-collapse:collapse;min-width:790px;text-align:left}.timetable th{padding:15px 14px;background:#f1f3fb;color:#59647b;font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}.timetable td{padding:16px 14px;border-top:1px solid #edf0f6;color:#4d5870;font-size:.88rem;white-space:nowrap}.timetable tbody tr:hover{background:#fafbff}.timetable td:first-child strong,.table-train-name{display:block}.timetable td:first-child strong{color:#27356f}.table-train-name{font-size:.76rem;color:#8790a2;margin-top:4px}.timetable .time-cell{font-weight:800;color:#293775;font-variant-numeric:tabular-nums}.table-empty{text-align:center!important;color:#818ba0!important;padding:28px!important}
+@media(max-width:760px){.status-meta{column-gap:16px}.train-card-top{gap:12px}.timetable-section{padding-top:42px}}
+
+/* Separate signed-in train dashboard */
+.landing-page{padding-top:70px}.landing-features{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-top:26px}.landing-features .content-card{margin:0}.landing-features h3{margin:0 0 8px;color:#293775}.landing-features p{margin:0;color:#737f95;line-height:1.6}.dashboard-heading{display:flex;align-items:center;justify-content:space-between;gap:20px}.dashboard-heading h1{font-size:clamp(2rem,5vw,3rem);margin:0;color:#202d58}.dashboard-heading .lead{margin:9px 0 0}.dashboard-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:28px}.dashboard-stat{padding:20px 22px;background:#fff;border:1px solid #e5e9f2;border-radius:14px;box-shadow:0 8px 25px #25345c08}.dashboard-stat span{display:block;color:#7b8498;font-size:.85rem;font-weight:650}.dashboard-stat strong{display:block;margin-top:7px;font-size:2rem;color:#293775}.dashboard-section{padding-top:40px}@media(max-width:650px){.landing-features{grid-template-columns:1fr}.dashboard-heading{align-items:flex-start;flex-direction:column}.dashboard-stats{gap:9px}.dashboard-stat{padding:14px}.dashboard-stat strong{font-size:1.6rem}.dashboard-stat span{font-size:.75rem}}
+
+/* Orange Log In button */
+.nav-links .nav-login {
+  background: #F97316;
+  color: #FFFFFF;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.3s ease;
+}
+
+.nav-links .nav-login:hover {
+  background: #EA580C;
+  color: #FFFFFF;
+}
+
+/* OR separator */
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 22px 0;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #e2e8f0;
+}
+
+/* Google login button */
+.google-login-button {
+  width: 100%;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: #ffffff;
+  color: #3c4043;
+  border: 1px solid #dadce0;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 500;
+  font-family: Arial, sans-serif;
+  cursor: pointer;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+
+.google-login-button:hover {
+  background: #f8faff;
+  box-shadow: 0 1px 3px rgba(60, 64, 67, 0.25);
+}
+
+.google-login-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.google-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
