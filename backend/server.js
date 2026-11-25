@@ -9,7 +9,7 @@ dotenv.config();
 import connectDB from "./config/db.js";
 
 import trainRoutes from "./routes/trainRoutes.js";
-import bookingRoutes from "./routes/bookingroutes.js";
+import bookingRoutes from "./routes/bookingRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 
 const app = express();
