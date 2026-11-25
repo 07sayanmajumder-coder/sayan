@@ -14,13 +14,30 @@ const serviceAccountPath = path.join(
   "firebase-service-account.json"
 );
 
-if (!fs.existsSync(serviceAccountPath)) {
-  throw new Error("Firebase service account JSON file not found.");
-}
+let serviceAccount;
 
-const serviceAccount = JSON.parse(
-  fs.readFileSync(serviceAccountPath, "utf8")
-);
+// Render: read credentials from environment variable
+if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+  try {
+    serviceAccount = JSON.parse(
+      process.env.FIREBASE_SERVICE_ACCOUNT
+    );
+  } catch {
+    throw new Error(
+      "Invalid FIREBASE_SERVICE_ACCOUNT environment variable. Check its JSON format."
+    );
+  }
+}
+// Local development: read credentials from JSON file
+else if (fs.existsSync(serviceAccountPath)) {
+  serviceAccount = JSON.parse(
+    fs.readFileSync(serviceAccountPath, "utf8")
+  );
+} else {
+  throw new Error(
+    "Firebase credentials not found. Configure FIREBASE_SERVICE_ACCOUNT or provide the local service account JSON file."
+  );
+}
 
 if (!getApps().length) {
   initializeApp({
