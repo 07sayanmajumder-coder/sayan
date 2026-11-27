@@ -20,7 +20,7 @@ import {
 const AuthContext = createContext(undefined);
 
 const API_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+  import.meta.env.VITE_API_URL || "https://railway-booking-backend-n1cx.onrender.com/api";
 
 // Normalize user data
 function normalizeUser(user) {

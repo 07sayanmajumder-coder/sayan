@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = "https://railway-booking-backend-n1cx.onrender.com/api";
 
 export default function MyBookings() {
   const navigate = useNavigate();

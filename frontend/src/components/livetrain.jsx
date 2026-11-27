@@ -4,7 +4,7 @@ const handleSearch = async () => {
 const journeyDate = "2026-11-20";
 
 const response = await fetch(
-  `http://localhost:5000/api/trains/${trainNumber}/live?date=${journeyDate}`
+  `"https://railway-booking-backend-n1cx.onrender.com/api"/trains/${trainNumber}/live?date=${journeyDate}`
 );
 
 const result = await response.json();

@@ -1,5 +1,5 @@
 const API_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+  import.meta.env.VITE_API_URL || "https://railway-booking-backend-n1cx.onrender.com/api";
 
 // Fetch train catalog
 export async function getTrains() {

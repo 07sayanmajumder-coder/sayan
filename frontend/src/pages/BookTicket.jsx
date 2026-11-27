@@ -9,7 +9,7 @@ import {
 
 import { useAuth } from '../context/AuthContext';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = 'https://railway-booking-backend-n1cx.onrender.com/api';
 
 const STEPS = [
   'Validating Details',

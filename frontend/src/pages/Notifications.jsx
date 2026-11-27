@@ -14,7 +14,7 @@ import { useAuth } from "../context/AuthContext";
 
 // Dynamic backend URL from frontend/.env
 const API_URL = (
-  import.meta.env.VITE_API_URL || "http://localhost:5000/api"
+  import.meta.env.VITE_API_URL || "https://railway-booking-backend-n1cx.onrender.com/api"
 ).replace(/\/+$/, "");
 
 export default function Notifications() {

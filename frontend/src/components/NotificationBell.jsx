@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 const API_URL = (
-  import.meta.env.VITE_API_URL || "http://localhost:5000/api"
+  import.meta.env.VITE_API_URL || "https://railway-booking-backend-n1cx.onrender.com/api"
 ).replace(/\/+$/, "");
 
 export default function NotificationBell() {
